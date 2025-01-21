@@ -1,3 +1,4 @@
+import json
 import time
 from pprint import pprint
 
@@ -20,12 +21,12 @@ text_prompt_template = """以下是一段 HTML 文本，包含了一篇文章的
         - 用户对没有产品发布的新闻不感兴趣
         - 用户对荣誉奖项不感兴趣
     - 重大学术突破，如 Scaling Law, KV Cache，但：
-        - 用户对游戏、视频生成、自动驾驶这些方向不感兴趣
+        - 用户对游戏、视频生成、自动驾驶、图像识别、生物化学这些方向不感兴趣
         - 用户对 AAAI、IJCAI 这些刊物不感兴趣
     - 开源产品或开源模型发布
     - 大额的融投资
     - 面向 AI 的法律法规
-注意：只需要返回
+注意：只需要返回结果，不需要对过程进行解释
     
 返回格式：
 {output_format}
@@ -64,11 +65,11 @@ chain = prompt | llm | output_parser
 
 # prepare data
 html_articles = []
-with open("filter.md", encoding="utf-8") as fh:
-    for line in fh:
-        link = line.strip().split("(")[1][:-1]
+with open("articles.json", encoding="utf-8") as fh:
+    article_list = json.loads(fh.read())
+    for article in article_list:
         resp = requests.get(
-            link,
+            article["url"],
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             },
@@ -76,7 +77,6 @@ with open("filter.md", encoding="utf-8") as fh:
         if resp.ok:
             soup = BeautifulSoup(resp.text, "lxml")
             div_article = soup.find("div", class_="article")
-            # html_article = div_article.text
             html_article = str(div_article)
             html_articles.append(html_article)
 
@@ -88,4 +88,25 @@ print(f"time cost: {end - start:.2f}s")
 print(callback.prompt_tokens)
 print(callback.completion_tokens)
 
-pprint(summaries)
+# get reports
+with open("report.md", "w", encoding="utf-8") as fh:
+    for i, article in enumerate(article_list):
+        summary = summaries[i]
+        if summary["recommend"]:
+            markdown = f"""### {article["title"]}
+
+链接：{article["url"]}
+
+<div style="display: flex; margin: 0;">
+    <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+        <p>{summary["summary"]}</p>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+      <img src="{article["image_url"]}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+    </div>
+</div>
+
+"""
+            fh.write(markdown)
+        else:
+            pprint(summary)
