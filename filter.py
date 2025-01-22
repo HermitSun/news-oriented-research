@@ -76,5 +76,13 @@ print(f"time cost: {end - start:.2f}s")
 print(callback.prompt_tokens)
 print(callback.completion_tokens)
 
+# avoid repetition when write
+with open("articles.json", encoding="utf-8") as fh:
+    current_articles = json.loads(fh.read())
+    url_articles_dict = dict()
+    for article in current_articles:
+        url_articles_dict[article["url"]] = article
+    for article in article_list:
+        url_articles_dict[article["url"]] = article
 with open("articles.json", "w", encoding="utf-8") as fh:
-    fh.write(json.dumps(article_list))
+    fh.write(json.dumps(list(url_articles_dict.values())))
